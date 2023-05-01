@@ -170,6 +170,8 @@ if(1==1){
     # Append the jags names for the parameter to the parameter table
     cfa.partable.stan.estimated.parameters <- cbind(temp, parameter.name.jags)
 
+
+    colnames(measurement.model.draws.as.data.frame) <- parameter.name.jags
     # # Convert the draws from the measurement model to a data frame ------
     # measurement.model.draws.as.data.frame <- dplyr::select(
     #   as.data.frame(as.matrix(draws.to.analyze)),
@@ -371,7 +373,7 @@ if(1==1){
         #burnin = n.burnin,
         burnin = 1,   # Think this is warmup in stan
         adapt=10,
-        sample=2,
+        sample=10,
         std.lv = TRUE,			# identify the model by fixing factor variance to 1
         #std.ov = TRUE,      # to get standardized solution
         int.ov.free = FALSE,
@@ -1512,7 +1514,7 @@ model{
 
     # TO BE DELETED: Append blavaan object for purposes of ripping things out for standardized solution
     MUPPET.CFA.function.result <- append(MUPPET.CFA.function.result, fitted.model.bsem.jags)
-
+    names(MUPPET.CFA.function.result)[length(MUPPET.CFA.function.result)] <- "bsem.obj.cm"
 
     # Return the result of the function
     return(MUPPET.CFA.function.result)
