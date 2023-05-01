@@ -14,6 +14,7 @@ if(1==1){
     n.burnin = 0,
     n.iters.per.chain.after.warmup.and.burnin = 10000,
     obtain.standardized.cfa=TRUE,
+    obtain.standardized.combined.model=TRUE,
     beta.o.prior.mean = 0,
     beta.o.prior.var = 10000,
     psi.y.prior.alpha = 1,
@@ -170,7 +171,7 @@ if(1==1){
     # Append the jags names for the parameter to the parameter table
     cfa.partable.stan.estimated.parameters <- cbind(temp, parameter.name.jags)
 
-
+    # Rename the columsn for the draws by their jags names
     colnames(measurement.model.draws.as.data.frame) <- parameter.name.jags
     # # Convert the draws from the measurement model to a data frame ------
     # measurement.model.draws.as.data.frame <- dplyr::select(
@@ -372,8 +373,8 @@ if(1==1){
         n.chains=2,
         #burnin = n.burnin,
         burnin = 1,   # Think this is warmup in stan
-        adapt=10,
-        sample=10,
+        adapt=1,
+        sample=2,
         std.lv = TRUE,			# identify the model by fixing factor variance to 1
         #std.ov = TRUE,      # to get standardized solution
         int.ov.free = FALSE,
@@ -1332,7 +1333,7 @@ model{
       write.table(to.write, file.name, row.names=FALSE)
     } # closes if saving draws from MUPPET model
 
-    # Standardized solution to measurement model
+    # * Standardized solution to measurement model -----
     if(obtain.standardized.cfa){
       # Need to run twice to replace all the names
 
@@ -1343,7 +1344,7 @@ model{
         colnames(standardized.posterior.cfa) <- str_replace(colnames(standardized.posterior.cfa), paste0("x",j), indicators.names[j])
       } # close loop over indicators
 
-      # * Compute the summary statistics for standardized solution to the measurement model -----
+      # * * Compute the summary statistics for standardized solution to the measurement model -----
       draws.to.analyze <- standardized.posterior.cfa
       summary.statistics.standardized.measurement <- MCMCsummary(
         draws.to.analyze,
@@ -1355,7 +1356,7 @@ model{
         func_name = "median"
       )
 
-      # * Write out the summary statistics for the MUPPET model ------
+      # * * Write out the summary statistics for the MUPPET model ------
       if(save.summary.stats.from.MUPPET){
         file.name=paste0("Summary Statistics Standardized Measurement Model.csv")
         write.csv(
@@ -1366,6 +1367,48 @@ model{
 
 
     } # closes if obtaining standardized solution for the measurement model
+
+
+
+    # * Standardized solution to combined model -----
+    if(obtain.standardized.combined.model){
+
+      # * * Compute standardized solution for the combined model ------
+      standardized.posterior.combined.model <- standardizedPosterior.replace.draws(
+        fitted.model.bsem.jags, replacement.draws = draws.from.MUPPET.model
+      )
+
+
+      # * * Compute the summary statistics for standardized solution to the measurement model -----
+      draws.to.analyze <- standardized.posterior.combined.model
+      summary.statistics.standardized.combined.model <- MCMCsummary(
+        draws.to.analyze,
+        HPD=TRUE,
+        n.eff=FALSE,
+        Rhat=FALSE,
+        round=8,
+        func=median,
+        func_name = "median"
+      )
+
+      # * * Write out the summary statistics for the MUPPET model ------
+      if(save.summary.stats.from.MUPPET){
+        file.name=paste0("Summary Statistics Standardized Combined Model.csv")
+        write.csv(
+          x=summary.statistics.standardized.combined.model,
+          file=file.name
+        )
+      } # closes if saving summary statistics from MUPPET model
+
+
+    } # closes if obtaining standardized solution for the combined model
+
+
+
+
+
+
+
 
     # Results from model checking
     if(model.check){
