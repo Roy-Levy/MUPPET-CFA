@@ -541,7 +541,7 @@ if(1==1){
                                            jags.model.fitted <- coda.samples(
                                              jags.model.initialized,
 
-                                             variable.names=c(entities.to.monitor, "parvec")
+                                             variable.names=c(entities.to.monitor, "parvec"),
                                              # variable.names=entities.to.monitor,
 
 
