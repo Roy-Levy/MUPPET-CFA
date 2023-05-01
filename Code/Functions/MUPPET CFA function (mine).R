@@ -345,18 +345,93 @@ if(1==1){
 #       write(modelstring, model.file.name)
 #
 
-      # * Declare the data that holds across parallel instances ------
-      #x = as.matrix(dplyr::select(data.centered, contains(indicators.names)))
-      x = as.matrix(indicators)
-      n <- nrow(x)
-      #J <- ncol(x)
-      #y = as.matrix(y)
-      y = as.matrix(outcomes)
-      y = y[,1]
+      # * * * Write combined model in lavaan syntax ------
+      combined.model.syntax.lavaan <- '
+      f1 =~ NA*x1 + NA*x2 + NA*x3 + NA*x4
+
+      x1 ~ 0*1
+      x2 ~ 0*1
+      x3 ~ 0*1
+      x4 ~ 0*1
+
+      y1 ~ f1
+      y1 ~ 0*1
+
+      '
+
+      # * * * Define the file name with the JAGS syntax ------
+      #model.file.name <- "sem.jag"
+      model.file.name <- paste0(getwd(), "/lavExport/sem.jag")
+
+      # * * * Run bsem() for a few iterations, just to produce JAGS syntax and data structure ------
+      fitted.model.bsem.jags <- bsem(
+        model = combined.model.syntax.lavaan,
+        #dp=measurement.model.priors,
+        n.chains=2,
+        #burnin = n.burnin,
+        burnin = 1,   # Think this is warmup in stan
+        adapt=10,
+        sample=2,
+        std.lv = TRUE,			# identify the model by fixing factor variance to 1
+        #std.ov = TRUE,      # to get standardized solution
+        int.ov.free = FALSE,
+        #estimator = "ML",
+        #likelihood = "wishart", # normal based  on dividing by N, wishart is N-1
+        #se = "standard"
+        target = "jags",
+        mcmcfile=TRUE,
+        save.lvs=FALSE,
+        test="none",   # turn off computing fit functions
+        #bcontrol=list(cores=n.chains),
+        #mcmcextra = list(data='parvec=c(.5, .5, .5, .5, .5, .5, .5, .5)'),
+        #mcmcextra = list(data=list(lambda=lambda.values)),
+        #mcmcextra = list(data=list(parvec=parvec.values)),
+        inits = "jags",
+        data = cbind(indicators, outcomes)
+      )
+
+      # * * * Extract the parameter table from blavaan for the CFA model using jags -----
+      combined.partable.jags <- as.data.frame(fitted.model.bsem.jags@ParTable)
+      combined.partable.jags <- rename(combined.partable.jags, parameter.name.jags = pxnames)
+
+      # * * * Create the parameter table for the combined model -----
+      # Merge the parameter table from the measurement model and combined model
+      partable.join.mm.and.sm <- left_join(combined.partable.jags, cfa.partable.stan.estimated.parameters, by='parameter.name.jags')
+
+      # Only preserve the rows for paramters that are estimated
+      partable.join.mm.and.sm <- (partable.join.mm.and.sm %>% filter(free.x >0))
+
+      # Rename the columns for the parameter number in each model
+      partable.join.mm.and.sm <- rename(partable.join.mm.and.sm, parameter.number.cm = free.x)
+      partable.join.mm.and.sm <- rename(partable.join.mm.and.sm, parameter.number.mm = stanpnum)
+
+      # * * * Define the number of parameters in the combined model and measurement model -----
+      n.estimated.parameters.cm <- nrow(partable.join.mm.and.sm)
+      n.estimated.parameters.mm <- max(select(partable.join.mm.and.sm, parameter.number.mm), na.rm=TRUE)
+
+      # * * * Load the object called 'jagtrans' with information for jags -----
+      load(
+        paste0(getwd(), "/lavExport/semjags.rda")
+      )
+
+      # * * * Extract the data portion that was passed to JAGS, to be augmented later -----
+      jags.data <- jagtrans$data
+
+
+
+      # # * Declare the data that holds across parallel instances ------
+      # #x = as.matrix(dplyr::select(data.centered, contains(indicators.names)))
+      # x = as.matrix(indicators)
+      # n <- nrow(x)
+      # #J <- ncol(x)
+      # #y = as.matrix(y)
+      # y = as.matrix(outcomes)
+      # y = y[,1]
 
 
       # * Define entities to monitor ----------
-      entities.to.monitor <- c("beta.o", "beta.o.standardized.mod.imp.var.y", "psi.y", "lambda", "phi", "psi.x")
+      # entities.to.monitor <- c("beta.o", "beta.o.standardized.mod.imp.var.y", "psi.y", "lambda", "phi", "psi.x")
+      entities.to.monitor <- c("lambda", "theta", "beta", "psi")
 
 
 
@@ -399,37 +474,52 @@ if(1==1){
                                          .combine=rbind) %dopar% {
 
 
-                                           # * Set measurement model parameters for this iteration ----
-                                           lambda.for.iter <- dplyr::select(
-                                             measurement.model.draws.as.data.frame,
-                                             contains("ly")
-                                           )[which.iter,]
+                                           # * * * Create the vector of values for parameters to be fed to JAGS -----
+                                           parvec.values.for.iter <- rep(NA, n.estimated.parameters.cm)
+                                           for(which.mm.param in 1:n.estimated.parameters.mm){
+                                             place.in.parvec.values <- partable.join.mm.and.sm %>%
+                                               filter(parameter.number.mm == which.mm.param)  %>%
+                                               select(parameter.number.cm)
 
-                                           phi.for.iter <- dplyr::select(
-                                             measurement.model.draws.as.data.frame,
-                                             contains("phi")
-                                           )[which.iter,]
+                                             # parvec.values[as.integer(place.in.parvec.values)] = .5
+                                             parvec.values.for.iter[as.integer(place.in.parvec.values)] = .5
+                                           }
 
-                                           psi.x.for.iter <- dplyr::select(
-                                             measurement.model.draws.as.data.frame,
-                                             contains("Theta")
-                                           )[which.iter,]
+                                           # * * * Augment the data to be passed to jags with parvec values just selected -----
+                                           jags.data[[length(jags.data)+1]] <- parvec.values
+                                           names(jags.data)[[length(jags.data)]] <- "parvec"
+
+                                           # # * Set measurement model parameters for this iteration ----
+                                           # lambda.for.iter <- dplyr::select(
+                                           #   measurement.model.draws.as.data.frame,
+                                           #   contains("ly")
+                                           # )[which.iter,]
+                                           #
+                                           # phi.for.iter <- dplyr::select(
+                                           #   measurement.model.draws.as.data.frame,
+                                           #   contains("phi")
+                                           # )[which.iter,]
+                                           #
+                                           # psi.x.for.iter <- dplyr::select(
+                                           #   measurement.model.draws.as.data.frame,
+                                           #   contains("Theta")
+                                           # )[which.iter,]
 
 
                                            # * Define data to give -----
-                                           #x = as.matrix(indicators)
-                                           #n <- nrow(x)
-                                           #J <- ncol(x)
-                                           #y = as.matrix(y)
-                                           #y = as.vector(all.variables$y1)
-
-                                           lambda = as.double(lambda.for.iter)
-                                           psi.x = as.double(psi.x.for.iter)
-                                           phi = phi.for.iter
-                                           inv.psi.x <- 1/psi.x
-                                           #inv.phi = 1/phi
-
-                                           jags.data <- list("x"=x, "J"=J, "n"=n, "y"=y, "lambda"=lambda, "inv.psi.x"=inv.psi.x, "phi"=phi)
+                                           # x = as.matrix(indicators)
+                                           # n <- nrow(x)
+                                           # J <- ncol(x)
+                                           # y = as.matrix(y)
+                                           # y = as.vector(all.variables$y1)
+#
+#                                            lambda = as.double(lambda.for.iter)
+#                                            psi.x = as.double(psi.x.for.iter)
+#                                            phi = phi.for.iter
+#                                            inv.psi.x <- 1/psi.x
+#                                            #inv.phi = 1/phi
+#
+#                                            jags.data <- list("x"=x, "J"=J, "n"=n, "y"=y, "lambda"=lambda, "inv.psi.x"=inv.psi.x, "phi"=phi)
 
                                            # * Fit the model ------
 
@@ -441,14 +531,20 @@ if(1==1){
                                                                                 data=jags.data,
                                                                                 #data=jags.data.no.factor.variance,
                                                                                 n.chains=n.chains,
-                                                                                #inits=inits
-                                                                                inits=inits1
+                                                                                inits=inits
+                                                                                #inits=inits1
                                            )
+
+
 
                                            # Now obtain the distribution
                                            jags.model.fitted <- coda.samples(
                                              jags.model.initialized,
-                                             variable.names=entities.to.monitor,
+
+                                             variable.names=c(entities.to.monitor, "parvec")
+                                             # variable.names=entities.to.monitor,
+
+
                                              #variable.names=entities.to.monitor.factor.variance,
                                              #n.iter=n.iters.total.per.chain,
                                              n.iter=n.iters.per.chain.total.structural,

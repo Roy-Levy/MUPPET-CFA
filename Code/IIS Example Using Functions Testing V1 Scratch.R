@@ -41,7 +41,7 @@ fitted.model.bsem.jags <- bsem(
 )
 
 
-# Extract the parameter table from blavaan for the CFA model using stan
+# Extract the parameter table from blavaan for the CFA model using jags
 combined.partable.jags <- as.data.frame(fitted.model.bsem.jags@ParTable)
 
 combined.partable.jags <- rename(combined.partable.jags, parameter.name.jags = pxnames)
