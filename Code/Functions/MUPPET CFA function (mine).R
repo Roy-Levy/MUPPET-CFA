@@ -467,7 +467,7 @@ if(1==1){
 
       # Run analyses in parallel ------
       #which.iter=1
-      #results.from.parallel <- foreach(which.iter=1:100,
+      #results.from.parallel <- foreach(which.iter=1:10,
       draws.from.MUPPET.model <- foreach(which.iter=1:nrow(measurement.model.draws.as.data.frame),
                                          #results.from.parallel <- foreach(which.iter=1:1000,
                                          .packages = c("dplyr", "R2jags"),
@@ -481,13 +481,18 @@ if(1==1){
                                                filter(parameter.number.mm == which.mm.param)  %>%
                                                select(parameter.number.cm)
 
-                                             # parvec.values[as.integer(place.in.parvec.values)] = .5
-                                             parvec.values.for.iter[as.integer(place.in.parvec.values)] = .5
+                                             # parvec.values.for.iter[as.integer(place.in.parvec.values)] = .5
+                                             parvec.values.for.iter[as.integer(place.in.parvec.values)] = measurement.model.draws.as.data.frame[which.iter, which.mm.param]
+
                                            }
 
                                            # * * * Augment the data to be passed to jags with parvec values just selected -----
-                                           jags.data[[length(jags.data)+1]] <- parvec.values.for.iter
-                                           names(jags.data)[[length(jags.data)]] <- "parvec"
+                                           jags.data.with.parvec <- jags.data
+                                           jags.data.with.parvec[[length(jags.data)+1]] <- parvec.values.for.iter
+                                           names(jags.data.with.parvec)[[length(jags.data.with.parvec)]] <- "parvec"
+
+                                           #jags.data[[length(jags.data)+1]] <- parvec.values.for.iter
+                                           #names(jags.data)[[length(jags.data)]] <- "parvec"
 
                                            # # * Set measurement model parameters for this iteration ----
                                            # lambda.for.iter <- dplyr::select(
@@ -528,7 +533,8 @@ if(1==1){
 
                                            # Initialize the model
                                            jags.model.initialized <- jags.model(file=model.file.name,
-                                                                                data=jags.data,
+                                                                                data=jags.data.with.parvec,
+                                                                                #data=jags.data,
                                                                                 #data=jags.data.no.factor.variance,
                                                                                 n.chains=n.chains,
                                                                                 #inits=inits
@@ -541,8 +547,8 @@ if(1==1){
                                            jags.model.fitted <- coda.samples(
                                              jags.model.initialized,
 
-                                             variable.names=c(entities.to.monitor, "parvec"),
-                                             # variable.names=entities.to.monitor,
+                                             # variable.names=c(entities.to.monitor, "parvec"),
+                                             variable.names=entities.to.monitor,
 
 
                                              #variable.names=entities.to.monitor.factor.variance,
