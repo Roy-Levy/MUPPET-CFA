@@ -20,7 +20,7 @@ fitted.model.bsem.jags <- bsem(
   n.chains=2,
   #burnin = n.burnin,
   burnin = 1,   # Think this is warmup in stan
-  #adapt=n.warmup,
+  adapt=10,
   sample=2,
   std.lv = TRUE,			# identify the model by fixing factor variance to 1
   #std.ov = TRUE,      # to get standardized solution
@@ -48,7 +48,7 @@ combined.partable.jags <- rename(combined.partable.jags, parameter.name.jags = p
 
 
 # cfa.partable.stan
-# 
+#
 partable.join.mm.and.sm <- left_join(combined.partable.jags, cfa.partable.stan.estimated.parameters, by='parameter.name.jags')
 
 partable.join.mm.and.sm <- (partable.join.mm.and.sm %>% filter(free.x >0))
@@ -62,10 +62,10 @@ n.estimated.parameters.mm <- max(select(partable.join.mm.and.sm, parameter.numbe
 
 parvec.values <- rep(NA, n.estimated.parameters.cm)
 for(which.mm.param in 1:n.estimated.parameters.mm){
-  place.in.parvec.values <- partable.join.mm.and.sm %>% 
+  place.in.parvec.values <- partable.join.mm.and.sm %>%
     filter(parameter.number.mm == which.mm.param)  %>%
     select(parameter.number.cm)
-  
+
   parvec.values[as.integer(place.in.parvec.values)] = .5
 }
 
@@ -77,7 +77,7 @@ fitted.model.bsem.jags <- bsem(
   n.chains=2,
   #burnin = n.burnin,
   burnin = 1,   # Think this is warmup in stan
-  #adapt=n.warmup,
+  adapt=10,
   sample=4,
   std.lv = TRUE,			# identify the model by fixing factor variance to 1
   #std.ov = TRUE,      # to get standardized solution
@@ -107,8 +107,8 @@ load(
 library(R2jags)
 
 # jags.data <- list("x"=x, "J"=J, "n"=n, "y"=y, "lambda"=lambda, "inv.psi.x"=inv.psi.x, "phi"=phi)
-parvec.values <- rep(NA, 10)
-parvec.values <- c(1, rep(NA, 9))
+#parvec.values <- rep(NA, 10)
+#parvec.values <- c(1, rep(NA, 9))
 
 jags.data <- jagtrans$data
 
@@ -146,34 +146,6 @@ jags.model.fitted <- coda.samples(
   progress.bar="none"
 )
 
-
-
-fitted.model.bsem.jags <- modified.bsem.fuction(
-  model = combined.model.syntax.lavaan,
-  #dp=measurement.model.priors,
-  n.chains=2,
-  #burnin = n.burnin,
-  burnin = 1,   # Think this is warmup in stan
-  #adapt=n.warmup,
-  sample=10,
-  std.lv = TRUE,			# identify the model by fixing factor variance to 1
-  #std.ov = TRUE,      # to get standardized solution
-  int.ov.free = FALSE,
-  #estimator = "ML",
-  #likelihood = "wishart", # normal based  on dividing by N, wishart is N-1
-  #se = "standard"
-  target = "jags",
-  mcmcfile=TRUE,
-  save.lvs=FALSE,
-  test="none",   # turn off computing fit functions
-  #bcontrol=list(cores=n.chains),
-  # mcmcextra = list(data=list(parvec=parvec.values)),
-  # mcmcextra = list(data=list(parvec=rep(NA,10))),
-  # mcmcextra = list(data=list(parvec=c(1,rep(NA,9)))),
-  inits = "jags",
-  data = cbind(indicators, outcomes)
-)
-
 # summary(fitted.model.bsem.jags)
 
 fitted.model.jags <- blavInspect(fitted.model.bsem.jags, what="mcobj")
@@ -185,7 +157,7 @@ fitted.model.jags$model
 
 
 # convert draws to mcmc.list
-draws.as.mcmc.list <- MCMCchains(fitted.model.jags, 
+draws.as.mcmc.list <- MCMCchains(fitted.model.jags,
                                  mcmc.list = TRUE)
 
 
