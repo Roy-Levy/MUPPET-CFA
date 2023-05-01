@@ -531,7 +531,7 @@ if(1==1){
                                                                                 data=jags.data,
                                                                                 #data=jags.data.no.factor.variance,
                                                                                 n.chains=n.chains,
-                                                                                inits=inits
+                                                                                #inits=inits
                                                                                 #inits=inits1
                                            )
 
