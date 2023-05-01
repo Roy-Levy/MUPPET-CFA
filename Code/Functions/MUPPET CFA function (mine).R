@@ -254,94 +254,96 @@ if(1==1){
     # * * If outcomes but no covariates ------
     if(model.has.outcomes & !model.has.covariates) {
 
-      modelstring <- as.character("
+# Commenting out V1 method of writing JAGS code for model with outcomes
 
-model{
-
-  # Specify the factor analysis measurement model for the indicators
-
-  for (i in 1:n){
-    for(j in 1:J){
-      mu.x[i,j] <- f[i]*lambda[j]
-      x[i,j] ~ dnorm(mu.x[i,j], inv.psi.x[j])
-    }
-  }
-  # Prior for the latent variables
-  for (i in 1:n){
-    f[i] ~ dnorm(0, inv.phi)
-  }
-
-  # Prior for the parameters that govern the latent variables
-  #inv.phi ~ dgamma(1, 1) # precision for latent variables
-  #phi <- 1/inv.phi
-  inv.phi <- 1/phi
-
-
-
-
-
-  # Prior for the measurement model parameters
-  for(j in 1:J){
-    #inv.psi.x[j] ~ dgamma(1, .8)    # Error precisions for observables
-    psi.x[j] <- 1/inv.psi.x[j]      # Error variances for observables
-    #lambda[j] ~ dnorm(0, .01)       # Loadings for observables
-
-
-  }
-
-  # Compute standardized coefficients
-  mod.imp.variance.f <- phi
-  for(j in 1:J){
-    mod.imp.variance.x[j] <- pow(lambda[j],2)*mod.imp.variance.f + psi.x[j]
-    lambda.standardized.mod.imp.var.x[j] <- lambda[j]*sqrt(mod.imp.variance.f)/(sqrt(mod.imp.variance.x[j]))
-  }
-
-
-  # Specify the structural model for the outcomes
-  for (i in 1:n){
-    mu.y[i] <- f[i]*beta.o
-    y[i] ~ dnorm(mu.y[i], inv.psi.y)
-  }
-
-  # Compute standardized coefficients
-  #mod.imp.variance.f <- 1
-  mod.imp.variance.y <- pow(beta.o,2)*mod.imp.variance.f + psi.y
-  beta.o.standardized.mod.imp.var.y <- beta.o*sqrt(mod.imp.variance.f)/(sqrt(mod.imp.variance.y))
-
-") # closes the model as string
-
-
-
-      # Append the code for the prior for the structural coefficient for the outcome
-      modelstring <- paste(
-        modelstring,
-        "# Prior for the structural model parameters",
-        paste0("beta.o ~ dnorm(", beta.o.prior.mean, ", ", 1/beta.o.prior.var, ") # Structural coefficient for outcome"),
-        sep="\n"
-      )
-
-      # Append the code for the prior for the residual variation for the outcome
-      modelstring <- paste(
-        modelstring,
-        paste0("inv.psi.y ~ dgamma(", psi.y.prior.alpha, ", ", psi.y.prior.beta, ") # Error precision for outcome"),
-        "psi.y <- 1/inv.psi.y         # Error variance for outcome",
-        sep="\n"
-      )
-
-      # Append the code to close the model
-      modelstring <- paste(
-        modelstring,
-        "",
-        "} # closes the model",
-        sep="\n"
-      )
-
-
-      # cat(modelstring)
-
-      model.file.name <- "JAGS Model.txt"
-      write(modelstring, model.file.name)
-
+#       modelstring <- as.character("
+#
+# model{
+#
+#   # Specify the factor analysis measurement model for the indicators
+#
+#   for (i in 1:n){
+#     for(j in 1:J){
+#       mu.x[i,j] <- f[i]*lambda[j]
+#       x[i,j] ~ dnorm(mu.x[i,j], inv.psi.x[j])
+#     }
+#   }
+#   # Prior for the latent variables
+#   for (i in 1:n){
+#     f[i] ~ dnorm(0, inv.phi)
+#   }
+#
+#   # Prior for the parameters that govern the latent variables
+#   #inv.phi ~ dgamma(1, 1) # precision for latent variables
+#   #phi <- 1/inv.phi
+#   inv.phi <- 1/phi
+#
+#
+#
+#
+#
+#   # Prior for the measurement model parameters
+#   for(j in 1:J){
+#     #inv.psi.x[j] ~ dgamma(1, .8)    # Error precisions for observables
+#     psi.x[j] <- 1/inv.psi.x[j]      # Error variances for observables
+#     #lambda[j] ~ dnorm(0, .01)       # Loadings for observables
+#
+#
+#   }
+#
+#   # Compute standardized coefficients
+#   mod.imp.variance.f <- phi
+#   for(j in 1:J){
+#     mod.imp.variance.x[j] <- pow(lambda[j],2)*mod.imp.variance.f + psi.x[j]
+#     lambda.standardized.mod.imp.var.x[j] <- lambda[j]*sqrt(mod.imp.variance.f)/(sqrt(mod.imp.variance.x[j]))
+#   }
+#
+#
+#   # Specify the structural model for the outcomes
+#   for (i in 1:n){
+#     mu.y[i] <- f[i]*beta.o
+#     y[i] ~ dnorm(mu.y[i], inv.psi.y)
+#   }
+#
+#   # Compute standardized coefficients
+#   #mod.imp.variance.f <- 1
+#   mod.imp.variance.y <- pow(beta.o,2)*mod.imp.variance.f + psi.y
+#   beta.o.standardized.mod.imp.var.y <- beta.o*sqrt(mod.imp.variance.f)/(sqrt(mod.imp.variance.y))
+#
+# ") # closes the model as string
+#
+#
+#
+#       # Append the code for the prior for the structural coefficient for the outcome
+#       modelstring <- paste(
+#         modelstring,
+#         "# Prior for the structural model parameters",
+#         paste0("beta.o ~ dnorm(", beta.o.prior.mean, ", ", 1/beta.o.prior.var, ") # Structural coefficient for outcome"),
+#         sep="\n"
+#       )
+#
+#       # Append the code for the prior for the residual variation for the outcome
+#       modelstring <- paste(
+#         modelstring,
+#         paste0("inv.psi.y ~ dgamma(", psi.y.prior.alpha, ", ", psi.y.prior.beta, ") # Error precision for outcome"),
+#         "psi.y <- 1/inv.psi.y         # Error variance for outcome",
+#         sep="\n"
+#       )
+#
+#       # Append the code to close the model
+#       modelstring <- paste(
+#         modelstring,
+#         "",
+#         "} # closes the model",
+#         sep="\n"
+#       )
+#
+#
+#       # cat(modelstring)
+#
+#       model.file.name <- "JAGS Model.txt"
+#       write(modelstring, model.file.name)
+#
 
       # * Declare the data that holds across parallel instances ------
       #x = as.matrix(dplyr::select(data.centered, contains(indicators.names)))
