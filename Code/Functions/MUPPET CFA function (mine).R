@@ -486,7 +486,7 @@ if(1==1){
                                            }
 
                                            # * * * Augment the data to be passed to jags with parvec values just selected -----
-                                           jags.data[[length(jags.data)+1]] <- parvec.values
+                                           jags.data[[length(jags.data)+1]] <- parvec.values.for.iter
                                            names(jags.data)[[length(jags.data)]] <- "parvec"
 
                                            # # * Set measurement model parameters for this iteration ----
