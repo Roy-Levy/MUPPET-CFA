@@ -1510,6 +1510,10 @@ model{
       MUPPET.CFA.function.result <- append(MUPPET.CFA.function.result, model.check.list)
     }
 
+    # TO BE DELETED: Append blavaan object for purposes of ripping things out for standardized solution
+    MUPPET.CFA.function.result <- append(MUPPET.CFA.function.result, fitted.model.bsem.jags)
+
+
     # Return the result of the function
     return(MUPPET.CFA.function.result)
 
