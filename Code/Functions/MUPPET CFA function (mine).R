@@ -1510,6 +1510,10 @@ model{
       MUPPET.CFA.function.result <- append(MUPPET.CFA.function.result, model.check.list)
     }
 
+    # TO BE DELETED Append the matrix of draws from measurement model, to check if match in combined model ----
+    MUPPET.CFA.function.result <- append(MUPPET.CFA.function.result, measurement.model.draws.as.data.frame)
+
+    # Return the result of the function
     return(MUPPET.CFA.function.result)
 
   } # closes MUPPET.CFA.function
