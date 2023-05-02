@@ -428,6 +428,35 @@ if(1==1){
       # This has to be done because JAGS uses precision parameterization, while results from earlier stages are variances
       # The values in the variance columns terms created here are therefore not variances, but precisions
       measurement.model.draws.as.data.frame.changed <- measurement.model.draws.as.data.frame
+      colnames(measurement.model.draws.as.data.frame.changed)
+
+      # * * * * Read in the text file with the JAGS code ----------
+      jags.code.as.vector <- readLines(model.file.name)
+
+      # * * * * Invert values for variance terms ----------
+
+      # Go through each parameter
+      which.param=5
+      for(which.param in 1:ncol(measurement.model.draws.as.data.frame.changed)){
+
+        # Get the parameter name
+        parameter.name <- colnames(measurement.model.draws.as.data.frame.changed)[which.param]
+
+        # See if that parameter name is involved in inverting a value from parvec
+        # Using first 3 characters from parameter name, to get rid of []
+        # and seeing if there's a "-1" to indicate inverting
+        text.to.search.for <- c(substr(parameter.name, 1, 3), "-1")
+
+        num.lines.with.text.to.search.for <- sum(
+          rowSums(sapply(X = text.to.search.for, FUN = grepl, jags.code.as.vector))==length(text.to.search.for)
+        )
+
+        # If that parameter is involved, invert it
+        if(num.lines.with.text.to.search.for > 0){
+          measurement.model.draws.as.data.frame.changed[ , parameter.name] = 1/measurement.model.draws.as.data.frame.changed[ , parameter.name]
+        }
+
+      }
 
       # # * Declare the data that holds across parallel instances ------
       # #x = as.matrix(dplyr::select(data.centered, contains(indicators.names)))
@@ -491,7 +520,10 @@ if(1==1){
                                                filter(parameter.number.mm == which.mm.param)  %>%
                                                select(parameter.number.cm)
 
-                                             parvec.values.for.iter[as.integer(place.in.parvec.values)] = measurement.model.draws.as.data.frame[which.iter, which.mm.param]
+                                             # parvec.values.for.iter[as.integer(place.in.parvec.values)] = measurement.model.draws.as.data.frame[which.iter, which.mm.param]
+                                             # Changing to now use the *changed* values of the measurement model from above, which inverts the variance terms for passing to parvec
+                                             # Because JAGS uses precision parameterization
+                                             parvec.values.for.iter[as.integer(place.in.parvec.values)] = measurement.model.draws.as.data.frame.changed[which.iter, which.mm.param]
 
                                            }
 
