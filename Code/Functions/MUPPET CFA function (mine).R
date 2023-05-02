@@ -111,7 +111,7 @@ if(1==1){
       test="none",   # turn off computing fit functions
       bcontrol=list(cores=n.chains),
       #data = indicators
-      data.centered
+      data = data.centered
     )
 
     # summary(fitted.model.bcfa)
@@ -356,22 +356,23 @@ if(1==1){
 #
 
       # * * * Write combined model in lavaan syntax ------
-      combined.model.syntax.lavaan <- '
-      f1 =~ NA*x1 + NA*x2 + NA*x3 + NA*x4
-
-      x1 ~ 0*1
-      x2 ~ 0*1
-      x3 ~ 0*1
-      x4 ~ 0*1
-
-      y1 ~ f1
-      y1 ~ 0*1
-
-      '
+      # combined.model.syntax.lavaan <- '
+      # f1 =~ NA*x1 + NA*x2 + NA*x3 + NA*x4
+      #
+      # x1 ~ 0*1
+      # x2 ~ 0*1
+      # x3 ~ 0*1
+      # x4 ~ 0*1
+      #
+      # y1 ~ f1
+      # y1 ~ 0*1
+      #
+      # '
 
       # * * * Run bsem() for a few iterations, just to produce JAGS syntax and data structure ------
       fitted.model.bsem.jags <- bsem(
-        model = combined.model.syntax.lavaan,
+        # model = combined.model.syntax.lavaan,
+        model = combined.model.blavaan.syntax,
         dp=combined.model.priors,
         n.chains=2,
         #burnin = n.burnin,
@@ -393,7 +394,8 @@ if(1==1){
         #mcmcextra = list(data=list(lambda=lambda.values)),
         #mcmcextra = list(data=list(parvec=parvec.values)),
         inits = "jags",
-        data = cbind(indicators, outcomes)
+        # data = cbind(indicators, outcomes)
+        data = data.centered
       )
 
       # * * * Define the file name with the JAGS syntax ------
@@ -1456,9 +1458,6 @@ model{
 
 
 
-
-
-
     # Results from model checking
     if(model.check){
 
@@ -1590,6 +1589,15 @@ model{
         standardized.posterior.cfa=standardized.posterior.cfa
       )
       MUPPET.CFA.function.result <- append(MUPPET.CFA.function.result, standardized.measurement.list)
+    }
+
+    # If standardized solution for MUPPET model is requested
+    if(obtain.standardized.combined.model){
+      standardized.combined.list <- list(
+        summary.statistics.standardized.combined.model=summary.statistics.standardized.combined.model,
+        standardized.draws.from.MUPPET.model <- standardized.posterior.combined.model
+      )
+      MUPPET.CFA.function.result <- append(MUPPET.CFA.function.result, standardized.combined.list)
     }
 
     # If model check is requested
@@ -2838,6 +2846,9 @@ model{
 
   } # closes if obtaining standardized solution for the measurement model
 
+
+
+
   # Results from model checking
   if(model.check){
 
@@ -2962,6 +2973,7 @@ model{
     summary.statistics.MUPPET=summary.statistics.MUPPET,
     draws.from.MUPPET.model=draws.from.MUPPET.model
   )
+
   # If standardized solution for measurement model is requested
   if(obtain.standardized.cfa){
     standardized.measurement.list <- list(
@@ -2970,6 +2982,8 @@ model{
     )
     MUPPET.CFA.function.result <- append(MUPPET.CFA.function.result, standardized.measurement.list)
   }
+
+
 
   # If model check is requested
   if(model.check){
