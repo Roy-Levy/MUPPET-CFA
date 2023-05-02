@@ -9,6 +9,7 @@ if(1==1){
     covariates.names=NULL,
     outcomes.names=NULL,
     measurement.model.priors=blavaan::dpriors(),
+    combined.model.priors=blavaan::dpriors(),
     n.chains = 2,
     n.warmup = 500,
     n.burnin = 0,
@@ -367,7 +368,7 @@ if(1==1){
       # * * * Run bsem() for a few iterations, just to produce JAGS syntax and data structure ------
       fitted.model.bsem.jags <- bsem(
         model = combined.model.syntax.lavaan,
-        #dp=measurement.model.priors,
+        dp=combined.model.priors,
         n.chains=2,
         #burnin = n.burnin,
         burnin = 1,   # Think this is warmup in stan
