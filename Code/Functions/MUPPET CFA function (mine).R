@@ -8,18 +8,20 @@ if(1==1){
     indicators.names,
     covariates.names=NULL,
     outcomes.names=NULL,
+    measurement.model.blavaan.syntax=NULL,
+    combined.model.blavaan.syntax=NULL,
     measurement.model.priors=blavaan::dpriors(),
-    combined.model.priors=blavaan::dpriors(),
+    combined.model.priors=blavaan::dpriors(target="jags"),
     n.chains = 2,
     n.warmup = 500,
     n.burnin = 0,
     n.iters.per.chain.after.warmup.and.burnin = 10000,
     obtain.standardized.cfa=TRUE,
     obtain.standardized.combined.model=TRUE,
-    beta.o.prior.mean = 0,
-    beta.o.prior.var = 10000,
-    psi.y.prior.alpha = 1,
-    psi.y.prior.beta = 1,
+    # beta.o.prior.mean = 0, deprecated, now use combined.model.priors
+    # beta.o.prior.var = 10000, deprecated, now use combined.model.priors
+    # psi.y.prior.alpha = 1, deprecated, now use combined.model.priors
+    # psi.y.prior.beta = 1, deprecated, now use combined.model.priors
     beta.c.prior.mean = 0,
     beta.c.prior.var = 10000,
     n.iters.per.chain.total.structural = 51,
@@ -90,7 +92,8 @@ if(1==1){
 
 
     fitted.model.bcfa <- bcfa(
-      model = cfa.model.syntax.lavaan,
+      #model = cfa.model.syntax.lavaan,
+      model = measurement.model.blavaan.syntax,
       dp=measurement.model.priors,
       n.chains=n.chains,
       #burnin = n.burnin,
@@ -107,7 +110,8 @@ if(1==1){
       save.lvs=FALSE,
       test="none",   # turn off computing fit functions
       bcontrol=list(cores=n.chains),
-      data = indicators
+      #data = indicators
+      data.centered
     )
 
     # summary(fitted.model.bcfa)
