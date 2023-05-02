@@ -171,8 +171,10 @@ if(1==1){
     # Append the jags names for the parameter to the parameter table
     cfa.partable.stan.estimated.parameters <- cbind(temp, parameter.name.jags)
 
-    # Rename the columsn for the draws by their jags names
+    # Rename the columns for the draws by their jags names
     colnames(measurement.model.draws.as.data.frame) <- parameter.name.jags
+
+
     # # Convert the draws from the measurement model to a data frame ------
     # measurement.model.draws.as.data.frame <- dplyr::select(
     #   as.data.frame(as.matrix(draws.to.analyze)),
@@ -362,10 +364,6 @@ if(1==1){
 
       '
 
-      # * * * Define the file name with the JAGS syntax ------
-      #model.file.name <- "sem.jag"
-      model.file.name <- paste0(getwd(), "/lavExport/sem.jag")
-
       # * * * Run bsem() for a few iterations, just to produce JAGS syntax and data structure ------
       fitted.model.bsem.jags <- bsem(
         model = combined.model.syntax.lavaan,
@@ -392,6 +390,11 @@ if(1==1){
         inits = "jags",
         data = cbind(indicators, outcomes)
       )
+
+      # * * * Define the file name with the JAGS syntax ------
+      #model.file.name <- "sem.jag"
+      model.file.name <- paste0(getwd(), "/lavExport/sem.jag")
+
 
       # * * * Extract the parameter table from blavaan for the CFA model using jags -----
       combined.partable.jags <- as.data.frame(fitted.model.bsem.jags@ParTable)
@@ -421,6 +424,10 @@ if(1==1){
       jags.data <- jagtrans$data
 
 
+      # * * * Change values for draws from earlier stage to be passed to JAGS via parvec -----
+      # This has to be done because JAGS uses precision parameterization, while results from earlier stages are variances
+      # The values in the variance columns terms created here are therefore not variances, but precisions
+      measurement.model.draws.as.data.frame.changed <- measurement.model.draws.as.data.frame
 
       # # * Declare the data that holds across parallel instances ------
       # #x = as.matrix(dplyr::select(data.centered, contains(indicators.names)))
@@ -484,7 +491,6 @@ if(1==1){
                                                filter(parameter.number.mm == which.mm.param)  %>%
                                                select(parameter.number.cm)
 
-                                             # parvec.values.for.iter[as.integer(place.in.parvec.values)] = .5
                                              parvec.values.for.iter[as.integer(place.in.parvec.values)] = measurement.model.draws.as.data.frame[which.iter, which.mm.param]
 
                                            }
@@ -1378,6 +1384,12 @@ model{
         fitted.model.bsem.jags, replacement.draws = draws.from.MUPPET.model
       )
 
+      # * Write out draws from the MUPPET model -------
+      if(save.draws.from.MUPPET){
+        file.name <- "Draws from MUPPET model standardized solution.out"
+        to.write <- standardized.posterior.combined.model
+        write.table(to.write, file.name, row.names=FALSE)
+      } # closes if saving draws from MUPPET model, here for the standardized solution
 
       # * * Compute the summary statistics for standardized solution to the measurement model -----
       draws.to.analyze <- standardized.posterior.combined.model
