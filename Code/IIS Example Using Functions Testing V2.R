@@ -143,41 +143,45 @@ IIS.measurement.model.blavaan.syntax <- '
   # latent variable definitions
   f1 =~ NA*PI + NA*FI + NA*AD + NA*FC
 
-  # means
-	PI ~ 0*1
-	FI ~ 0*1
-  AD ~ 0*1
-  FC ~ 0*1
+  # mean structure (intercepts)
+# 	PI ~ 0*1
+# 	FI ~ 0*1
+#   AD ~ 0*1
+#   FC ~ 0*1
 
 '
 
 
-IIS.combined.model.blavaan.syntax <- '
+IIS.combined.model.with.outcome.blavaan.syntax <- '
 
   # measurement model
   # latent variable definitions
   f1 =~ NA*PI + NA*FI + NA*AD + NA*FC
 
-  # means
-	PI ~ 0*1
-	FI ~ 0*1
-  AD ~ 0*1
-  FC ~ 0*1
+  # mean structure (intercepts)
+# 	PI ~ 0*1
+# 	FI ~ 0*1
+#   AD ~ 0*1
+#   FC ~ 0*1
 
   # structural model
   IGC ~ f1
 
-  # means
-  IGC ~ 0*1
+  # mean structure (intercepts)
+  # IGC ~ 0*1
 '
+
+
+
 
 MUPPET.CFA.outcome <- MUPPET.CFA.function(
     data=raw.data,
+    center.the.data=FALSE,
     indicators.names=c("PI", "FI", "AD", "FC"),
     covariates.names=NULL,
     outcomes.names="IGC",
     measurement.model.blavaan.syntax=IIS.measurement.model.blavaan.syntax,
-    combined.model.blavaan.syntax=IIS.combined.model.blavaan.syntax,
+    combined.model.blavaan.syntax=IIS.combined.model.with.outcome.blavaan.syntax,
     measurement.model.priors=dpriors(
       #nu="normal(0,3)",        # measured variable intercepts in N(mean, sd)
       lambda="normal(0,10)",    # measured variable loadings in N(mean, sd)
@@ -195,7 +199,7 @@ MUPPET.CFA.outcome <- MUPPET.CFA.function(
     n.warmup = 500,
     n.burnin = 0,
     n.iters.per.chain.after.warmup.and.burnin = 2500,
-    obtain.standardized.cfa=TRUE,
+    obtain.standardized.measurement.model=TRUE,
     obtain.standardized.combined.model = TRUE,
     #beta.o.prior.mean = 0,
     #beta.o.prior.var = 10000,
