@@ -3,7 +3,7 @@
 MUPPET.CFA.function <- function(
     data,
     center.the.data=FALSE,
-    indicators.names,
+    indicators.names=NULL,
     covariates.names=NULL,
     outcomes.names=NULL,
     measurement.model.blavaan.syntax=NULL,
@@ -15,15 +15,15 @@ MUPPET.CFA.function <- function(
     n.warmup = 500,
     n.burnin = 0,
     n.iters.per.chain.after.warmup.and.burnin = 10000,
-    obtain.standardized.measurement.model=TRUE,
-    obtain.standardized.combined.model=TRUE,
+    obtain.standardized.measurement.model=TRUE,    # Should be TRUE
+    obtain.standardized.combined.model=TRUE,      # Should be TRUE
     # beta.o.prior.mean = 0, deprecated, now use combined.model.priors
     # beta.o.prior.var = 10000, deprecated, now use combined.model.priors
     # psi.y.prior.alpha = 1, deprecated, now use combined.model.priors
     # psi.y.prior.beta = 1, deprecated, now use combined.model.priors
-    beta.c.prior.mean = 0,
-    beta.c.prior.var = 10000,
-    n.iters.per.chain.total.structural = 51,
+    # beta.c.prior.mean = 0,
+    # beta.c.prior.var = 10000,
+    # n.iters.per.chain.total.structural = 51,
     save.summary.stats.from.MUPPET=TRUE,
     save.draws.from.MUPPET=FALSE,
     model.check=FALSE,

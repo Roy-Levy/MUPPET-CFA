@@ -136,7 +136,7 @@ file.name <- "IIS.dat"
 raw.data <- as.data.frame(read.table(paste0(data.folder, file.name), header = TRUE))
 
 
-# Conduct MUPPET modeling with an outcome ------
+# Conduct MUPPET modeling ------
 IIS.measurement.model.blavaan.syntax <- '
 
   # measurement model
@@ -171,7 +171,24 @@ IIS.combined.model.with.outcome.blavaan.syntax <- '
   # IGC ~ 0*1
 '
 
+IIS.combined.model.with.covariate.blavaan.syntax <- '
 
+  # measurement model
+  # latent variable definitions
+  f1 =~ NA*PI + NA*FI + NA*AD + NA*FC
+
+  # mean structure (intercepts)
+# 	PI ~ 0*1
+# 	FI ~ 0*1
+#   AD ~ 0*1
+#   FC ~ 0*1
+
+  # structural model
+  f1 ~ age_in_years
+
+  # mean structure (intercepts)
+  # IGC ~ 0*1
+'
 
 
 MUPPET.CFA.outcome <- MUPPET.CFA.function(
