@@ -1,8 +1,6 @@
 # Function to conduct MUPPET CFA analyses
 
-if(1==1){
-
-  MUPPET.CFA.function <- function(
+MUPPET.CFA.function <- function(
     data,
     center.the.data=FALSE,
     indicators.names,
@@ -12,6 +10,7 @@ if(1==1){
     combined.model.blavaan.syntax=NULL,
     measurement.model.priors=blavaan::dpriors(),
     combined.model.priors=blavaan::dpriors(target="jags"),
+    combined.model.has.endogenous.latent=FALSE,
     n.chains = 2,
     n.warmup = 500,
     n.burnin = 0,
@@ -27,7 +26,7 @@ if(1==1){
     n.iters.per.chain.total.structural = 51,
     save.summary.stats.from.MUPPET=TRUE,
     save.draws.from.MUPPET=FALSE,
-    model.check=TRUE,
+    model.check=FALSE,
     save.post.pred.data=FALSE
   ){
 
@@ -40,55 +39,10 @@ if(1==1){
       data.to.analyze <- data.centered
     }
 
+    # STAGE 2: MEASUREMENT MODEL MODEL ----
 
-    # * Declare if covariates or outcomes are present ------
-    # model.has.covariates <- length(covariates.names)!=0
-    # model.has.outcomes <- length(outcomes.names)!=0
 
-    # * Datasets for indicators, covariates, and outcomes  ------
-    # indicators <- as.data.frame(select(data.centered, all_of(indicators.names)))
-    # J = length(indicators.names)
-    # colnames(indicators) <- paste0("x", seq(1:J))
-    # if(model.has.covariates) {
-    #   covariates <- as.data.frame(dplyr::select(data.centered, all_of(covariates.names)))
-    #   H = length(covariates.names)
-    #   colnames(covariates) <- paste0("w", seq(1:H))
-    # }
-    # if(model.has.outcomes) {
-    #   outcomes <- as.data.frame(dplyr::select(data.centered, all_of(outcomes.names)))
-    #   K = length(outcomes.names)
-    #   colnames(outcomes) <- paste0("y", seq(1:K))
-    # }
-
-    # * Declare number  latent variables ------
-    # M=1
-
-    # STAGE 1: MEASUREMENT MODEL ---
-    # Load packages for fitting the measurement model ----
-    #library(blavaan)
-    #future::plan("multisession")
-    #options(mc.cores = parallel::detectCores())
-
-    # Generate lavaan syntax ------
-#
-#     # * Measurement model factor structure -----
-#     cfa.model.syntax.lavaan <- 'f1 =~ NA*'
-#     cfa.model.syntax.lavaan <- paste0(cfa.model.syntax.lavaan, colnames(indicators)[1])
-#     if(J > 1){
-#       for(j in 2:J){
-#         cfa.model.syntax.lavaan <- paste0(cfa.model.syntax.lavaan, " + NA*", colnames(indicators)[j])
-#       }
-#     } # closes if J>1
-#
-#     # * Fix intercepts to 0 in measurement model  -----
-#     for(j in 1:J){
-#       cfa.model.syntax.lavaan <- paste(cfa.model.syntax.lavaan, paste0(colnames(indicators)[j], " ~ 0*1"), sep="\n")
-#     }
-
-    # cat(cfa.model.syntax.lavaan)
-
-    # Fit the measurement model ------
-
+    # Define the number of iterations per chain ------
     n.iters.total.per.chain = n.warmup+n.burnin+n.iters.per.chain.after.warmup.and.burnin
 
     # Print out beginning of fitting this portion of the model
@@ -97,6 +51,7 @@ if(1==1){
                  n.iters.total.per.chain, " total iterations per chain")
     )
 
+    # Fit the measurement model ------
 
     fitted.model.bcfa <- bcfa(
       #model = cfa.model.syntax.lavaan,
@@ -124,18 +79,14 @@ if(1==1){
 
     # summary(fitted.model.bcfa)
 
+
     # Obtain the standardized solution to the measurement model -----
     if(obtain.standardized.measurement.model) standardized.posterior.measurement.model <- standardizedPosterior(fitted.model.bcfa)
 
 
-    # STAGE 2: STRUCTURAL MODEL ----
+    # STAGE 2: COMBINED MODEL ----
 
-    # Load the packages for preparing draws from previous stage for next stage -----
-    #library(MCMCvis)
-    #library(coda)
-    #library(dplyr)
-
-    # Extract the stanfit object -----
+    # Extract the stanfit object for the fitted measurement model -----
     fitted.model.stanfit <- blavInspect(fitted.model.bcfa, what="mcobj")
 
     # convert draws to mcmc.list
@@ -187,197 +138,16 @@ if(1==1){
     # Rename the columns for the draws by their jags names
     colnames(measurement.model.draws.as.data.frame) <- parameter.name.jags
 
-
-    # # Convert the draws from the measurement model to a data frame ------
-    # measurement.model.draws.as.data.frame <- dplyr::select(
-    #   as.data.frame(as.matrix(draws.to.analyze)),
-    #   contains(c("ly","Theta"))
-    # )
-    #
-
-    # # Add on the values for the factor variance of 1
-    # phi <- rep(1, nrow(measurement.model.draws.as.data.frame))
-    # measurement.model.draws.as.data.frame <- cbind(measurement.model.draws.as.data.frame, phi)
-
-
     # Prepare to fit the structural model ------
 
-    # * Declare some MCMC parameters that hold over iterations from measurement model -----
+    # * Declare if standardizing the latent variable in fitting the combined model  ------
+    # Default: yes for models without endogenous latent variable, no for models with endogenous latent variable
+    # Controlled by the argument 'combined.model.has.endogenous.latent'
 
-    # * * Initial values for structural model
+      standardize.lv.when.fitting.combined.model = !combined.model.has.endogenous.latent
 
-    # #if(model.has.outcomes){
-    #
-    #   beta.o.inits <- NULL
-    #   inv.psi.y.inits <- NULL
-    #   #k=1
-    #
-    #   for(k in 1:K){
-    #     # Get initial values from regression of outcome on mean of indicators
-    #     temp.y <- rowMeans(outcomes[k])
-    #     temp.x <- rowMeans(indicators)
-    #
-    #     temp.regression <- lm(temp.y ~ temp.x)
-    #
-    #     beta.o.inits <- c(beta.o.inits, temp.regression$coefficients["temp.x"])
-    #     inv.psi.y.inits <- c(inv.psi.y.inits, sigma(temp.regression)^2)
-    #
-    #   } # closes loop over K
-    #
-    # }
+      # * Run bsem() for a few iterations, just to produce JAGS syntax and data structure ------
 
-    # #if(model.has.covariates){
-    #
-    #   beta.c.inits <- NULL
-    #   #h=1
-    #   for(h in 1:H){
-    #     # Get initial values from regression of mean of indicators on covariates
-    #     temp.w <- rowMeans(covariates[h])
-    #     temp.x <- rowMeans(indicators)
-    #
-    #     temp.regression <- lm(temp.x ~ temp.w)
-    #     summary(temp.regression)
-    #
-    #     beta.c.inits <- c(beta.c.inits, temp.regression$coefficients["temp.w"])
-    #
-    #   } # closes loop over H
-    #
-    # }
-
-    # # Define the initial values based on whether there are covariates or outcomes
-    # #if(model.has.outcomes & !model.has.covariates) {
-    #   inits1 <- list(
-    #     beta.o=beta.o.inits,
-    #     inv.psi.y=inv.psi.y.inits
-    #   )
-    # }
-    #
-    # #if(!model.has.outcomes & model.has.covariates) {
-    #   inits1 <- list(
-    #     beta.c=beta.c.inits
-    #   )
-    # }
-    #
-    # #if(model.has.outcomes & model.has.covariates) {
-    #   inits1 <- list(
-    #     beta.c=beta.c.inits,
-    #     beta.o=beta.o.inits,
-    #     inv.psi.y=inv.psi.y.inits
-    #   )
-    # }
-
-
-    # * Code for the the structural model -----
-
-    # * * If outcomes but no covariates ------
-    if(model.has.outcomes & !model.has.covariates) {
-
-# Commenting out V1 method of writing JAGS code for model with outcomes
-
-#       modelstring <- as.character("
-#
-# model{
-#
-#   # Specify the factor analysis measurement model for the indicators
-#
-#   for (i in 1:n){
-#     for(j in 1:J){
-#       mu.x[i,j] <- f[i]*lambda[j]
-#       x[i,j] ~ dnorm(mu.x[i,j], inv.psi.x[j])
-#     }
-#   }
-#   # Prior for the latent variables
-#   for (i in 1:n){
-#     f[i] ~ dnorm(0, inv.phi)
-#   }
-#
-#   # Prior for the parameters that govern the latent variables
-#   #inv.phi ~ dgamma(1, 1) # precision for latent variables
-#   #phi <- 1/inv.phi
-#   inv.phi <- 1/phi
-#
-#
-#
-#
-#
-#   # Prior for the measurement model parameters
-#   for(j in 1:J){
-#     #inv.psi.x[j] ~ dgamma(1, .8)    # Error precisions for observables
-#     psi.x[j] <- 1/inv.psi.x[j]      # Error variances for observables
-#     #lambda[j] ~ dnorm(0, .01)       # Loadings for observables
-#
-#
-#   }
-#
-#   # Compute standardized coefficients
-#   mod.imp.variance.f <- phi
-#   for(j in 1:J){
-#     mod.imp.variance.x[j] <- pow(lambda[j],2)*mod.imp.variance.f + psi.x[j]
-#     lambda.standardized.mod.imp.var.x[j] <- lambda[j]*sqrt(mod.imp.variance.f)/(sqrt(mod.imp.variance.x[j]))
-#   }
-#
-#
-#   # Specify the structural model for the outcomes
-#   for (i in 1:n){
-#     mu.y[i] <- f[i]*beta.o
-#     y[i] ~ dnorm(mu.y[i], inv.psi.y)
-#   }
-#
-#   # Compute standardized coefficients
-#   #mod.imp.variance.f <- 1
-#   mod.imp.variance.y <- pow(beta.o,2)*mod.imp.variance.f + psi.y
-#   beta.o.standardized.mod.imp.var.y <- beta.o*sqrt(mod.imp.variance.f)/(sqrt(mod.imp.variance.y))
-#
-# ") # closes the model as string
-#
-#
-#
-#       # Append the code for the prior for the structural coefficient for the outcome
-#       modelstring <- paste(
-#         modelstring,
-#         "# Prior for the structural model parameters",
-#         paste0("beta.o ~ dnorm(", beta.o.prior.mean, ", ", 1/beta.o.prior.var, ") # Structural coefficient for outcome"),
-#         sep="\n"
-#       )
-#
-#       # Append the code for the prior for the residual variation for the outcome
-#       modelstring <- paste(
-#         modelstring,
-#         paste0("inv.psi.y ~ dgamma(", psi.y.prior.alpha, ", ", psi.y.prior.beta, ") # Error precision for outcome"),
-#         "psi.y <- 1/inv.psi.y         # Error variance for outcome",
-#         sep="\n"
-#       )
-#
-#       # Append the code to close the model
-#       modelstring <- paste(
-#         modelstring,
-#         "",
-#         "} # closes the model",
-#         sep="\n"
-#       )
-#
-#
-#       # cat(modelstring)
-#
-#       model.file.name <- "JAGS Model.txt"
-#       write(modelstring, model.file.name)
-#
-
-      # * * * Write combined model in lavaan syntax ------
-      # combined.model.syntax.lavaan <- '
-      # f1 =~ NA*x1 + NA*x2 + NA*x3 + NA*x4
-      #
-      # x1 ~ 0*1
-      # x2 ~ 0*1
-      # x3 ~ 0*1
-      # x4 ~ 0*1
-      #
-      # y1 ~ f1
-      # y1 ~ 0*1
-      #
-      # '
-
-      # * * * Run bsem() for a few iterations, just to produce JAGS syntax and data structure ------
       fitted.model.bsem.jags <- bsem(
         # model = combined.model.syntax.lavaan,
         model = combined.model.blavaan.syntax,
@@ -387,7 +157,10 @@ if(1==1){
         burnin = 1,   # Think this is warmup in stan
         adapt=1,
         sample=2,
-        std.lv = TRUE,			# identify the model by fixing factor variance to 1
+
+        #std.lv = TRUE,			# identify the model by fixing factor variance to 1
+        std.lv = standardize.lv.when.fitting.combined.model,			# identify the model by fixing factor variance to 1
+
         #std.ov = TRUE,      # to get standardized solution
         #int.ov.free = FALSE,
         #estimator = "ML",
@@ -407,16 +180,15 @@ if(1==1){
         data = data.to.analyze
       )
 
-      # * * * Define the file name with the JAGS syntax ------
-      #model.file.name <- "sem.jag"
+      # * Define the file name with the JAGS syntax ------
       model.file.name <- paste0(getwd(), "/lavExport/sem.jag")
 
 
-      # * * * Extract the parameter table from blavaan for the measurement model using jags -----
+      # * Extract the parameter table from blavaan for the combined model using jags -----
       combined.partable.jags <- as.data.frame(fitted.model.bsem.jags@ParTable)
       combined.partable.jags <- rename(combined.partable.jags, parameter.name.jags = pxnames)
 
-      # * * * Create the parameter table for the combined model -----
+      # * Create the parameter table for the combined model -----
       # Merge the parameter table from the measurement model and combined model
       partable.join.mm.and.cm <- left_join(combined.partable.jags, measurement.model.partable.stan.estimated.parameters, by='parameter.name.jags')
 
@@ -427,29 +199,29 @@ if(1==1){
       partable.join.mm.and.cm <- rename(partable.join.mm.and.cm, parameter.number.cm = free.x)
       partable.join.mm.and.cm <- rename(partable.join.mm.and.cm, parameter.number.mm = stanpnum)
 
-      # * * * Define the number of parameters in the combined model and measurement model -----
+      # * Define the number of parameters in the combined model and measurement model -----
       n.estimated.parameters.cm <- nrow(partable.join.mm.and.cm)
       n.estimated.parameters.mm <- max(select(partable.join.mm.and.cm, parameter.number.mm), na.rm=TRUE)
 
-      # * * * Load the object called 'jagtrans' with information for jags -----
+      # * Load the object called 'jagtrans' with information for jags -----
       load(
         paste0(getwd(), "/lavExport/semjags.rda")
       )
 
-      # * * * Extract the data portion that was passed to JAGS, to be augmented later -----
+      # * Extract the data portion that was passed to JAGS, to be augmented later -----
       jags.data <- jagtrans$data
 
 
-      # * * * Change values for draws from earlier stage to be passed to JAGS via parvec -----
+      # * Change values for draws from earlier stage to be passed to JAGS via parvec -----
       # This has to be done because JAGS uses precision parameterization, while results from earlier stages are variances
       # The values in the variance columns terms created here are therefore not variances, but precisions
       measurement.model.draws.as.data.frame.changed <- measurement.model.draws.as.data.frame
       colnames(measurement.model.draws.as.data.frame.changed)
 
-      # * * * * Read in the text file with the JAGS code ----------
+      # * * Read in the text file with the JAGS code ----------
       jags.code.as.vector <- readLines(model.file.name)
 
-      # * * * * Invert values for variance terms ----------
+      # * * Invert values for variance terms ----------
 
       # Go through each parameter
       #which.param=5
@@ -463,7 +235,9 @@ if(1==1){
         # and seeing if
         #    the text 'parvec' is there and
         #    if there's a "-1" to indicate inverting
+
         text.to.search.for <- c(substr(parameter.name, 1, 2), "parvec", "-1")
+
 
         num.lines.with.text.to.search.for <- sum(
           rowSums(sapply(X = text.to.search.for, FUN = grepl, jags.code.as.vector))==length(text.to.search.for)
@@ -476,21 +250,11 @@ if(1==1){
 
       }
 
-      # # * Declare the data that holds across parallel instances ------
-      # #x = as.matrix(dplyr::select(data.centered, contains(indicators.names)))
-      # x = as.matrix(indicators)
-      # n <- nrow(x)
-      # #J <- ncol(x)
-      # #y = as.matrix(y)
-      # y = as.matrix(outcomes)
-      # y = y[,1]
-
-
       # * Define entities to monitor ----------
       # entities.to.monitor <- c("beta.o", "beta.o.standardized.mod.imp.var.y", "psi.y", "lambda", "phi", "psi.x")
       # entities.to.monitor <- c("lambda", "theta", "beta", "psi")
 
-      # Here, by the entities that were monintored in the earlier run of the combined model
+      # Here, by the entities that were monitored in the earlier run of the combined model
       entities.to.monitor <- fitted.model.bsem.jags@external$mcmcout$monitor
 
       # Fit the structural portion of the model --------
@@ -499,13 +263,13 @@ if(1==1){
       )
 
 
-      # Call the packages ------
+      # * Call the packages ------
       #library(parallel)
       #library(foreach)
       #library(doParallel)
 
 
-      # Clean up existing parallel environment ------
+      # * Clean up existing parallel environment ------
       unregister_dopar <- function() {
         env <- foreach:::.foreachGlobals
         rm(list=ls(name=env), pos=env)
@@ -514,16 +278,16 @@ if(1==1){
       unregister_dopar()
 
 
-      # Setup parallel environment ------
+      # * Setup parallel environment ------
 
-      # Detect the number of cores
+      # * * Detect the number of cores
       numCores <- detectCores()
 
-      # Set the number of cores to use
+      # * * Set the number of cores to use
       registerDoParallel(numCores)  # use multicore, set to the number of our cores
 
 
-      # Run analyses in parallel ------
+      # * Run analyses in parallel ------
       # which.iter=1
       #results.from.parallel <- foreach(which.iter=1:10,
       draws.from.MUPPET.model <- foreach(which.iter=1:nrow(measurement.model.draws.as.data.frame),
@@ -532,7 +296,7 @@ if(1==1){
                                          .combine=rbind) %dopar% {
 
 
-                                           # * * * Create the vector of values for parameters to be fed to JAGS -----
+                                           # * * Create the vector of values for parameters to be fed to JAGS -----
                                            parvec.values.for.iter <- rep(NA, n.estimated.parameters.cm)
                                            for(which.mm.param in 1:n.estimated.parameters.mm){
                                              place.in.parvec.values <- partable.join.mm.and.cm %>%
@@ -546,7 +310,7 @@ if(1==1){
 
                                            }
 
-                                           # * * * Augment the data to be passed to jags with parvec values just selected -----
+                                           # * * Augment the data to be passed to jags with parvec values just selected -----
                                            jags.data.with.parvec <- jags.data
                                            jags.data.with.parvec[[length(jags.data)+1]] <- parvec.values.for.iter
                                            names(jags.data.with.parvec)[[length(jags.data.with.parvec)]] <- "parvec"
@@ -554,39 +318,8 @@ if(1==1){
                                            #jags.data[[length(jags.data)+1]] <- parvec.values.for.iter
                                            #names(jags.data)[[length(jags.data)]] <- "parvec"
 
-                                           # # * Set measurement model parameters for this iteration ----
-                                           # lambda.for.iter <- dplyr::select(
-                                           #   measurement.model.draws.as.data.frame,
-                                           #   contains("ly")
-                                           # )[which.iter,]
-                                           #
-                                           # phi.for.iter <- dplyr::select(
-                                           #   measurement.model.draws.as.data.frame,
-                                           #   contains("phi")
-                                           # )[which.iter,]
-                                           #
-                                           # psi.x.for.iter <- dplyr::select(
-                                           #   measurement.model.draws.as.data.frame,
-                                           #   contains("Theta")
-                                           # )[which.iter,]
 
-
-                                           # * Define data to give -----
-                                           # x = as.matrix(indicators)
-                                           # n <- nrow(x)
-                                           # J <- ncol(x)
-                                           # y = as.matrix(y)
-                                           # y = as.vector(all.variables$y1)
-#
-#                                            lambda = as.double(lambda.for.iter)
-#                                            psi.x = as.double(psi.x.for.iter)
-#                                            phi = phi.for.iter
-#                                            inv.psi.x <- 1/psi.x
-#                                            #inv.phi = 1/phi
-#
-#                                            jags.data <- list("x"=x, "J"=J, "n"=n, "y"=y, "lambda"=lambda, "inv.psi.x"=inv.psi.x, "phi"=phi)
-
-                                           # * Fit the model ------
+                                           # * * Fit the model ------
 
                                            # Load modules for JAGS
                                            load.module("glm")
@@ -621,7 +354,7 @@ if(1==1){
 
 
 
-                                           # * Store the value from the desired iteration ------
+                                           # * * Store the value from the desired iteration ------
                                            result1 <- jags.model.fitted[n.iters.per.chain.total.structural, ][[1]]
                                            result1
 
@@ -629,207 +362,10 @@ if(1==1){
                                          } # closes foreach
 
 
-      # Close parallel environment ------
+      # * Close parallel environment ------
       stopImplicitCluster()
 
-    } # closes if outcomes but no covariates
 
-    # * * If covariates but no outcomes ------
-    #if(!model.has.outcomes & model.has.covariates) {
-
-      modelstring <- as.character("
-
-model{
-
-  # Specify the factor analysis measurement model for the indicators
-
-  for (i in 1:n){
-    for(j in 1:J){
-      mu.x[i,j] <- f[i]*lambda[j]
-      x[i,j] ~ dnorm(mu.x[i,j], inv.psi.x[j])
-    }
-  }
-
-  # Structural model
-  for (i in 1:n){
-    mu.f[i] <- (w[i])*beta.c
-    f[i] ~ dnorm(mu.f[i], inv.psi.f)
-  }
-
-
-  # Prior for the measurement model parameters
-  for(j in 1:J){
-    #inv.psi.x[j] ~ dgamma(1, .8)    # Error precisions for observables
-    psi.x[j] <- 1/inv.psi.x[j]      # Error variances for observables
-    #lambda[j] ~ dnorm(0, .01)       # Loadings for observables
-
-  }
-
-  # If fixing the factor variance (supplied as the value of phi, as data)
-  psi.f <- phi - pow(beta.c,2)*pow(sd(w[]),2) # Disturbance variance for latent
-  inv.psi.f <- 1/psi.f # Disturbance precision for latent
-
-  # Compute standardized coefficients
-  mod.imp.variance.f <- pow(beta.c,2)*pow(sd(w[]),2) + psi.f
-
-  for(j in 1:J){
-    mod.imp.variance.x[j] <- pow(lambda[j],2)*mod.imp.variance.f + psi.x[j]
-    lambda.standardized.mod.imp.var.x[j] <- lambda[j]*sqrt(mod.imp.variance.f)/(sqrt(mod.imp.variance.x[j]))
-  }
-
-  beta.c.standardized.mod.imp.var.f <- beta.c*sd(w[])/(sqrt(mod.imp.variance.f))
-
-") # closes the model as string
-
-
-
-      # Append the code for the prior for the structural coefficient for the covariate
-      modelstring <- paste(
-        modelstring,
-        "# Prior for the structural model parameters",
-        paste0("beta.c ~ dnorm(", beta.c.prior.mean, ", ", 1/beta.c.prior.var, ") # Structural coefficient for outcome"),
-        sep="\n"
-      )
-
-      # Append the code to close the model
-      modelstring <- paste(
-        modelstring,
-        "",
-        "} # closes the model",
-        sep="\n"
-      )
-
-
-      # cat(modelstring)
-
-      model.file.name <- "JAGS Model.txt"
-      write(modelstring, model.file.name)
-
-
-      # * Declare the data that holds across parallel instances ------
-      #x = as.matrix(dplyr::select(data.centered, contains(indicators.names)))
-      x = as.matrix(indicators)
-      n <- nrow(x)
-      w = as.matrix(covariates)
-      w = w[,1]
-
-
-      # * Define entities to monitor ----------
-      entities.to.monitor <- c("beta.c", "beta.c.standardized.mod.imp.var.f", "psi.f", "lambda", "phi", "psi.x")
-
-
-
-      # Fit the structural portion of the model --------
-      print(
-        paste0("Fitting the structural model for each of ", nrow(measurement.model.draws.as.data.frame), " draws from the measurement model")
-      )
-
-
-      # Call the packages ------
-      #library(parallel)
-      #library(foreach)
-      #library(doParallel)
-
-
-      # Clean up existing parallel environment ------
-      unregister_dopar <- function() {
-        env <- foreach:::.foreachGlobals
-        rm(list=ls(name=env), pos=env)
-      }
-
-      unregister_dopar()
-
-
-      # Setup parallel environment ------
-
-      # Detect the number of cores
-      numCores <- detectCores()
-
-      # Set the number of cores to use
-      registerDoParallel(numCores)  # use multicore, set to the number of our cores
-
-
-      # Run analyses in parallel ------
-      #which.iter=1
-      #results.from.parallel <- foreach(which.iter=1:100,
-      draws.from.MUPPET.model <- foreach(which.iter=1:nrow(measurement.model.draws.as.data.frame),
-                                         #results.from.parallel <- foreach(which.iter=1:1000,
-                                         .packages = c("dplyr", "R2jags"),
-                                         .combine=rbind) %dopar% {
-
-
-                                           # * Set measurement model parameters for this iteration ----
-                                           lambda.for.iter <- dplyr::select(
-                                             measurement.model.draws.as.data.frame,
-                                             contains("ly")
-                                           )[which.iter,]
-
-                                           phi.for.iter <- dplyr::select(
-                                             measurement.model.draws.as.data.frame,
-                                             contains("phi")
-                                           )[which.iter,]
-
-                                           psi.x.for.iter <- dplyr::select(
-                                             measurement.model.draws.as.data.frame,
-                                             contains("Theta")
-                                           )[which.iter,]
-
-
-                                           # * Define data to give -----
-                                           #x = as.matrix(indicators)
-                                           #n <- nrow(x)
-                                           #J <- ncol(x)
-                                           #y = as.matrix(y)
-                                           #y = as.vector(all.variables$y1)
-
-                                           lambda = as.double(lambda.for.iter)
-                                           psi.x = as.double(psi.x.for.iter)
-                                           phi = phi.for.iter
-                                           inv.psi.x <- 1/psi.x
-                                           #inv.phi = 1/phi
-
-                                           jags.data <- list("x"=x, "J"=J, "n"=n, "w"=w, "lambda"=lambda, "inv.psi.x"=inv.psi.x, "phi"=phi)
-
-                                           # * Fit the model ------
-
-                                           # Load modules for JAGS
-                                           load.module("glm")
-
-                                           # Initialize the model
-                                           jags.model.initialized <- jags.model(file=model.file.name,
-                                                                                data=jags.data,
-                                                                                #data=jags.data.no.factor.variance,
-                                                                                n.chains=n.chains,
-                                                                                #inits=inits
-                                                                                inits=inits1
-                                           )
-
-                                           # Now obtain the distribution
-                                           jags.model.fitted <- coda.samples(
-                                             jags.model.initialized,
-                                             variable.names=entities.to.monitor,
-                                             #variable.names=entities.to.monitor.factor.variance,
-                                             #n.iter=n.iters.total.per.chain,
-                                             n.iter=n.iters.per.chain.total.structural,
-                                             #progress.bar="gui"
-                                             progress.bar="none"
-                                           )
-
-
-
-
-                                           # * Store the value from the desired iteration ------
-                                           result1 <- jags.model.fitted[n.iters.per.chain.total.structural, ][[1]]
-                                           result1
-
-
-                                         } # closes foreach
-
-
-      # Close parallel environment ------
-      stopImplicitCluster()
-
-    } # closes if covariates but no outcomes
 
 
 
@@ -1341,7 +877,7 @@ model{
 
 
     # Results from model fitting
-    # * Rename columns of results -------
+    # Rename columns of results -------
 
     draws.from.MUPPET.model.blavaan.syntax.names <- draws.from.MUPPET.model
 
@@ -1366,25 +902,7 @@ model{
     }
 
 
-
-    # for(j in 1:J){
-    #   for(which.col in 1:ncol(draws.from.MUPPET.model)){
-    #     if(colnames(draws.from.MUPPET.model)[which.col]==paste0("lambda[", j, "]")) colnames(draws.from.MUPPET.model)[which.col]=paste0("lambda[", indicators.names[j], "]")
-    #     if(colnames(draws.from.MUPPET.model)[which.col]==paste0("psi.x[", j, "]")) colnames(draws.from.MUPPET.model)[which.col]=paste0("psi.x[", indicators.names[j], "]")
-    #   } # closes loop over columns
-    # } # close loop over indicators
-    #
-    #
-    # if(model.has.outcomes){
-    #   for(which.col in 1:ncol(draws.from.MUPPET.model)){
-    #     if(colnames(draws.from.MUPPET.model)[which.col]=="beta.o") colnames(draws.from.MUPPET.model)[which.col]=paste0("beta.o.", outcomes.names[1])
-    #     if(colnames(draws.from.MUPPET.model)[which.col]=="beta.o.standardized.mod.imp.var.y") colnames(draws.from.MUPPET.model)[which.col]=paste0("beta.o.standardized.mod.imp.var.", outcomes.names[1])
-    #     if(colnames(draws.from.MUPPET.model)[which.col]=="psi.y") colnames(draws.from.MUPPET.model)[which.col]=paste0("psi.y[", outcomes.names[1], "]")
-    #   } # closes loop over columns
-    # } # closes if model.has.outcomes
-
-
-    # * Compute the summary statistics for the draws from the model -----
+    # Compute the summary statistics for the draws from the model -----
     draws.to.analyze <- draws.from.MUPPET.model.blavaan.syntax.names
     summary.statistics.MUPPET <- MCMCsummary(
       draws.to.analyze,
@@ -1396,7 +914,7 @@ model{
       func_name = "median"
     )
 
-    # * Write out the summary statistics for the MUPPET model ------
+    # Write out the summary statistics for the MUPPET model ------
     if(save.summary.stats.from.MUPPET){
       file.name=paste0("Summary Statistics MUPPET Model.csv")
       write.csv(
@@ -1406,14 +924,14 @@ model{
     } # closes if saving summary statistics from MUPPET model
 
 
-    # * Write out draws from the MUPPET model -------
+    # Write out draws from the MUPPET model -------
     if(save.draws.from.MUPPET){
       file.name <- "Draws from MUPPET model.out"
       to.write <- draws.from.MUPPET.model.blavaan.syntax.names
       write.table(to.write, file.name, row.names=FALSE)
     } # closes if saving draws from MUPPET model
 
-    # * Standardized solution to measurement model -----
+    # Standardized solution to measurement model -----
     if(obtain.standardized.measurement.model){
       # Need to run twice to replace all the names
 
@@ -1424,7 +942,7 @@ model{
       #   colnames(standardized.posterior.measurement.model) <- str_replace(colnames(standardized.posterior.measurement.model), paste0("x",j), indicators.names[j])
       # } # close loop over indicators
 
-      # * * Compute the summary statistics for standardized solution to the measurement model -----
+      # * Compute the summary statistics for standardized solution to the measurement model -----
       draws.to.analyze <- standardized.posterior.measurement.model
       summary.statistics.standardized.measurement <- MCMCsummary(
         draws.to.analyze,
@@ -1436,7 +954,7 @@ model{
         func_name = "median"
       )
 
-      # * * Write out the summary statistics for the MUPPET model ------
+      # * Write out the summary statistics for the MUPPET model ------
       if(save.summary.stats.from.MUPPET){
         file.name=paste0("Summary Statistics Standardized Measurement Model.csv")
         write.csv(
@@ -1450,13 +968,43 @@ model{
 
 
 
-    # * Standardized solution to combined model -----
+    # Standardized solution to combined model -----
     if(obtain.standardized.combined.model){
 
-      # * * Compute standardized solution for the combined model ------
+      # * Compute standardized solution for the combined model ------
       standardized.posterior.combined.model <- standardizedPosterior.replace.draws(
         fitted.model.bsem.jags, replacement.draws = draws.from.MUPPET.model
       )
+
+      # * For models with endogenous latent variables, replace standardized solution for measurement model params with that from the measurement model ------
+      # The issue is that we're not enforcing the value for the marginal variance in models with exogenous latent variables
+      # So when standarizing the results for the combined model, the values are slightly different than in the measurement model
+      # So take the results for the measurement model
+
+      if(combined.model.has.endogenous.latent){
+        # Get names of observed variables from the measurement model
+
+        ov.names.in.measurement.model <- lavNames(fitted.model.bcfa, type="ov")
+
+        which.var=1
+        # go through each variable in the measurement model
+        for(which.var in 1:(length(ov.names.in.measurement.model))){
+          which.col=1
+
+          # go through each column in the results for the standardized posterior for the combined model
+          for(which.col in 1:ncol(standardized.posterior.combined.model)){
+
+            # Check if that column of the results for the standardized posterior for the combined model involves that variable from the measurement model
+            if(grepl(ov.names.in.measurement.model[which.var], colnames(standardized.posterior.combined.model)[which.col])){
+
+              # if it does, replace it with the column of the same name from the standardized solution to the measurement model
+              standardized.posterior.combined.model[, colnames(standardized.posterior.combined.model)[which.col]] <- standardized.posterior.measurement.model[, colnames(standardized.posterior.combined.model)[which.col]]
+
+            }
+          }
+        }
+
+      } # closes if combined.model.has.endogenous.latent
 
       # * Write out standardized solution draws from the MUPPET model -------
       if(save.draws.from.MUPPET){
@@ -1465,7 +1013,7 @@ model{
         write.table(to.write, file.name, row.names=FALSE)
       } # closes if saving draws from MUPPET model, here for the standardized solution
 
-      # * * Compute the summary statistics for standardized solution to the measurement model -----
+      # * Compute the summary statistics for standardized solution to the measurement model -----
       draws.to.analyze <- standardized.posterior.combined.model
       summary.statistics.standardized.combined.model <- MCMCsummary(
         draws.to.analyze,
@@ -1477,7 +1025,7 @@ model{
         func_name = "median"
       )
 
-      # * * Write out the summary statistics for the standardized solution for the MUPPET model ------
+      # * Write out the summary statistics for the standardized solution for the MUPPET model ------
       if(save.summary.stats.from.MUPPET){
         file.name=paste0("Summary Statistics Standardized Combined Model.csv")
         write.csv(
@@ -1618,7 +1166,7 @@ model{
       draws.from.MUPPET.model=draws.from.MUPPET.model
     )
     # If standardized solution for measurement model is requested
-    if(obtain.standardized.cfa){
+    if(obtain.standardized.measurement.model){
       standardized.measurement.list <- list(
         summary.statistics.standardized.measurement=summary.statistics.standardized.measurement,
         standardized.posterior.measurement.model=standardized.posterior.measurement.model
@@ -1655,7 +1203,4 @@ model{
     return(MUPPET.CFA.function.result)
 
   } # closes MUPPET.CFA.function
-
-} # closes switch for the first version of the MUPPET CFA function
-
 
