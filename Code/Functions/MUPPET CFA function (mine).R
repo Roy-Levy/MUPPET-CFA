@@ -23,7 +23,7 @@ MUPPET.CFA.function <- function(
     # psi.y.prior.beta = 1, deprecated, now use combined.model.priors
     # beta.c.prior.mean = 0,
     # beta.c.prior.var = 10000,
-    # n.iters.per.chain.total.structural = 51,
+    n.iters.per.chain.total.structural = 51,
     save.summary.stats.from.MUPPET=TRUE,
     save.draws.from.MUPPET=FALSE,
     model.check=FALSE,
@@ -325,7 +325,11 @@ MUPPET.CFA.function <- function(
                                            load.module("glm")
 
                                            # Initialize the model
-                                           jags.model.initialized <- jags.model(file=model.file.name,
+                                           jags.model.initialized <- jags.model(
+                                                                                file=model.file.name,
+
+
+                                                                                #file="E:/MUPPET CFA with Covariates and Outcomes/repo/MUPPET-CFA/lavExport/sem - modified.jag",
                                                                                 data=jags.data.with.parvec,
                                                                                 #data=jags.data,
                                                                                 #data=jags.data.no.factor.variance,

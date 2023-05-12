@@ -182,8 +182,36 @@ IIS.combined.model.with.covariate.blavaan.syntax <- '
   f1 ~ age_in_years
 
   # mean structure (intercepts)
-  # IGC ~ 0*1
+  f1 ~ 1
 '
+
+
+
+lavaan.sem <- sem(
+  model=IIS.combined.model.with.covariate.blavaan.syntax,
+  std.lv=TRUE,
+  data=raw.data
+)
+
+standardizedsolution(lavaan.sem)
+
+
+blavaan.sem <- bsem(
+  model=IIS.combined.model.with.covariate.blavaan.syntax,
+  std.lv=TRUE,
+  data=raw.data
+)
+summary(blavaan.sem)
+colMeans(standardizedPosterior(blavaan.sem))
+
+
+
+cfa(
+  model=IIS.measurement.model.blavaan.syntax,
+  std.lv=TRUE,
+  data=raw.data
+)
+
 
 
 MUPPET.CFA.outcome <- MUPPET.CFA.function(
