@@ -187,33 +187,6 @@ IIS.combined.model.with.covariate.blavaan.syntax <- '
 
 
 
-lavaan.sem <- sem(
-  model=IIS.combined.model.with.covariate.blavaan.syntax,
-  std.lv=TRUE,
-  data=raw.data
-)
-
-standardizedsolution(lavaan.sem)
-
-
-blavaan.sem <- bsem(
-  model=IIS.combined.model.with.covariate.blavaan.syntax,
-  std.lv=TRUE,
-  data=raw.data
-)
-summary(blavaan.sem)
-colMeans(standardizedPosterior(blavaan.sem))
-
-
-
-cfa(
-  model=IIS.measurement.model.blavaan.syntax,
-  std.lv=TRUE,
-  data=raw.data
-)
-
-
-
 MUPPET.CFA.outcome <- MUPPET.CFA.function(
     data=raw.data,
     center.the.data=FALSE,
