@@ -1,0 +1,53 @@
+model {
+  for(i in 1:N) {
+    x1[i] ~ dnorm(mu[i,1], 1/theta[1,1,g[i]])
+    x2[i] ~ dnorm(mu[i,2], 1/theta[2,2,g[i]])
+    x3[i] ~ dnorm(mu[i,3], 1/theta[3,3,g[i]])
+    x4[i] ~ dnorm(mu[i,4], 1/theta[4,4,g[i]])
+    y1[i] ~ dnorm(mu[i,5], 1/psi[2,2,g[i]])
+
+    # lvs
+    eta[i,1] ~ dnorm(mu_eta[i,1], 1/psi[1,1,g[i]])
+  }
+
+  # mu definitions
+  for(i in 1:N) {
+    mu[i,1] <- nu[1,1,g[i]] + lambda[1,1,g[i]]*eta[i,1]
+    mu[i,2] <- nu[2,1,g[i]] + lambda[2,1,g[i]]*eta[i,1]
+    mu[i,3] <- nu[3,1,g[i]] + lambda[3,1,g[i]]*eta[i,1]
+    mu[i,4] <- nu[4,1,g[i]] + lambda[4,1,g[i]]*eta[i,1]
+    mu[i,5] <- alpha[2,1,g[i]] + beta[2,1,g[i]]*eta[i,1]
+
+    mu_eta[i,1] <- alpha[1,1,g[i]]
+  }
+
+  # Assignments from parameter vector & equality constraints
+  lambda[1,1,1] <- parvec[1]
+  lambda[2,1,1] <- parvec[2]
+  lambda[3,1,1] <- parvec[3]
+  lambda[4,1,1] <- parvec[4]
+  nu[1,1,1] <- 0
+  nu[2,1,1] <- 0
+  nu[3,1,1] <- 0
+  nu[4,1,1] <- 0
+  beta[2,1,1] <- parvec[5]
+  alpha[2,1,1] <- 0
+  theta[1,1,1] <- pow(parvec[6],2)
+  theta[2,2,1] <- pow(parvec[7],2)
+  theta[3,3,1] <- pow(parvec[8],2)
+  theta[4,4,1] <- pow(parvec[9],2)
+  psi[2,2,1] <- pow(parvec[10],2)
+  psi[1,1,1] <- 1
+  alpha[1,1,1] <- 0
+  # Priors
+  parvec[1] ~ normal(0,10)
+  parvec[2] ~ normal(0,10)
+  parvec[3] ~ normal(0,10)
+  parvec[4] ~ normal(0,10)
+  parvec[5] ~ normal(0,10)
+  parvec[6] ~ gamma(1,.5)
+  parvec[7] ~ gamma(1,.5)
+  parvec[8] ~ gamma(1,.5)
+  parvec[9] ~ gamma(1,.5)
+  parvec[10] ~ gamma(1,.5)
+}

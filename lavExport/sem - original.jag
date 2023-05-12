@@ -1,0 +1,55 @@
+model {
+  for(i in 1:N) {
+    PI[i] ~ dnorm(mu[i,1], 1/theta[1,1,g[i]])
+    FI[i] ~ dnorm(mu[i,2], 1/theta[2,2,g[i]])
+    AD[i] ~ dnorm(mu[i,3], 1/theta[3,3,g[i]])
+    FC[i] ~ dnorm(mu[i,4], 1/theta[4,4,g[i]])
+
+    # lvs
+    eta[i,1] ~ dnorm(mu_eta[i,1], 1/psi[1,1,g[i]])
+  }
+
+  # mu definitions
+  for(i in 1:N) {
+    mu[i,1] <- nu[1,1,g[i]] + lambda[1,1,g[i]]*eta[i,1]
+    mu[i,2] <- nu[2,1,g[i]] + lambda[2,1,g[i]]*eta[i,1]
+    mu[i,3] <- nu[3,1,g[i]] + lambda[3,1,g[i]]*eta[i,1]
+    mu[i,4] <- nu[4,1,g[i]] + lambda[4,1,g[i]]*eta[i,1]
+
+    mu_eta[i,1] <- alpha[1,1,g[i]] + beta[1,2,g[i]]*age_in_years[i]
+  }
+
+  # Assignments from parameter vector & equality constraints
+  lambda[1,1,1] <- parvec[1]
+  lambda[2,1,1] <- parvec[2]
+  lambda[3,1,1] <- parvec[3]
+  lambda[4,1,1] <- parvec[4]
+  beta[1,2,1] <- parvec[5]
+  theta[1,1,1] <- pow(parvec[6],-1)
+  theta[2,2,1] <- pow(parvec[7],-1)
+  theta[3,3,1] <- pow(parvec[8],-1)
+  theta[4,4,1] <- pow(parvec[9],-1)
+  psi[1,1,1] <- pow(parvec[10],-1)
+  psi[2,2,1] <- 87.5534586051265
+  nu[1,1,1] <- parvec[11]
+  nu[2,1,1] <- parvec[12]
+  nu[3,1,1] <- parvec[13]
+  nu[4,1,1] <- parvec[14]
+  alpha[2,1,1] <- 35.7299411473566
+  alpha[1,1,1] <- 0
+  # Priors
+  parvec[1] ~ dnorm(0,1e-2)
+  parvec[2] ~ dnorm(0,1e-2)
+  parvec[3] ~ dnorm(0,1e-2)
+  parvec[4] ~ dnorm(0,1e-2)
+  parvec[5] ~ dnorm(0,.0001)
+  parvec[6] ~ dgamma(1,.5)
+  parvec[7] ~ dgamma(1,.5)
+  parvec[8] ~ dgamma(1,.5)
+  parvec[9] ~ dgamma(1,.5)
+  parvec[10] ~ dgamma(1,1)
+  parvec[11] ~ dnorm(0,1e-3)
+  parvec[12] ~ dnorm(0,1e-3)
+  parvec[13] ~ dnorm(0,1e-3)
+  parvec[14] ~ dnorm(0,1e-3)
+}
